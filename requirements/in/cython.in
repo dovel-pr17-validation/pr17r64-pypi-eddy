@@ -1,0 +1,6 @@
+#
+# Cython requirement
+#
+
+# From PyPi
+Cython==3.2.8

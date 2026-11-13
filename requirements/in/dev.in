@@ -1,0 +1,15 @@
+# Development requirements
+
+# Recursive
+-r base.in
+-r cython.in
+-r packaging.in
+-r pyqt5.in
+-r tests.in
+-r tox.in
+
+# From PyPi
+#flake8==4.0.1
+mypy==2.3.0
+objgraph==3.6.2
+pip-tools==7.6.0

@@ -1,0 +1,70 @@
+version: '{build}'
+
+image: Visual Studio 2015
+
+branches:
+  only:
+    - master
+    - develop
+    - /^deploy-.*$/
+
+cache:
+  - '%LOCALAPPDATA%\pip\Cache'
+
+environment:
+  matrix:
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7.8"
+      PYTHON_ARCH: "x32"
+      ARCH: "x32"
+      JAVA_HOME: "C:\\Program Files (x86)\\Java\\jdk1.8.0"
+      ISCC_EXE: "C:\\Program Files (x86)\\Inno Setup 5\\ISCC.exe"
+      VCVARS: "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat"
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7.8"
+      PYTHON_ARCH: "x64"
+      ARCH: "x64"
+      JAVA_HOME: "C:\\Program Files\\Java\\jdk1.8.0"
+      ISCC_EXE: "C:\\Program Files (x86)\\Inno Setup 5\\ISCC.exe"
+      VCVARS: "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat"
+
+init:
+  - echo %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%
+  - if "%ARCH%"=="x32" (call "%VCVARS%" x86 8.1)
+  - if "%ARCH%"=="x64" (call "%VCVARS%" amd64 8.1)
+
+install:
+  - set PATH="C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.1A\\Bin;%PATH%"
+  - set PATH="%PATH%;%APPVEYOR_BUILD_FOLDER%"
+  - set PATH=C:\Ruby24\bin;%PATH%
+  - gem install dpl
+  - "%PYTHON%\\python -m ensurepip"
+  - "%PYTHON%\\python -m pip install -U wheel pip setuptools"
+  - "%PYTHON%\\python -m pip install -U -r requirements\\in\\base.in"
+  - "%PYTHON%\\python -m pip install -U -r requirements\\in\\pyqt5.in"
+  - "%PYTHON%\\python -m pip install -U -r requirements\\in\\tests.in"
+  - "%PYTHON%\\python -m pip install -U -r requirements\\in\\packaging.in"
+  - "%PYTHON%\\python scripts\\getjdk.py --binary --arch %ARCH% --feature-version 11 --image-type jre --extract-to resources"
+  - move resources\jdk* resources\java
+
+# Appveyor's build step is specific to .NET projects
+build: off
+
+test_script:
+  - "%PYTHON%\\python -m pytest"
+
+after_test:
+  - "%PYTHON%\\Scripts\\pyinstaller --clean --windowed --workpath build --distpath build --noconfirm eddy.spec"
+  - "%PYTHON%\\python setup.py innosetup --skip-build"
+  - "%PYTHON%\\python setup.py standalone --skip-build --format=zip"
+
+artifacts:
+  - path: 'dist\*'
+
+before_deploy:
+  - copy scripts\travis\before_deploy.py .
+  - "%PYTHON%\\python before_deploy.py"
+
+deploy_script:
+  - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER dpl --provider=bintray --user=%BINTRAY_USER% --key=%BINTRAY_KEY% --file=descriptor.json --skip-cleanup

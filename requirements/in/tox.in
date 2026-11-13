@@ -1,0 +1,6 @@
+#
+# tox requirements
+#
+
+# From PyPI
+tox==4.57.2

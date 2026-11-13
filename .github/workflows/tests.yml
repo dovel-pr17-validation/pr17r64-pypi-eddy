@@ -1,0 +1,72 @@
+name: tests
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    name: ${{ matrix.os }} | ${{ matrix.python-version }} | ${{ matrix.pyqt-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: '3.10'
+            pyqt-version: '515'
+
+          - os: ubuntu-latest
+            python-version: '3.11'
+            pyqt-version: '515'
+
+          - os: ubuntu-latest
+            python-version: '3.12'
+            pyqt-version: '515'
+
+          - os: ubuntu-latest
+            python-version: '3.13'
+            pyqt-version: '515'
+
+          - os: ubuntu-latest
+            python-version: '3.14'
+            pyqt-version: '515'
+
+          - os: macos-latest
+            python-version: '3.11'
+            pyqt-version: '515'
+
+          - os: macos-latest
+            python-version: '3.12'
+            pyqt-version: '515'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install os dependencies
+        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        run: |
+          # Update package list
+          sudo apt-get update
+          # Required to run tests in headless mode
+          sudo apt-get install xvfb x11-utils
+          # Required since Qt 5.12
+          sudo apt-get install libxkbcommon-x11-0
+          # Required since Qt 5.15 due to removal of bundled xcb libs
+          # See: https://codereview.qt-project.org/c/qt/qtbase/+/253905
+          sudo apt-get install libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0
+          # Install openjdk 11 from ubuntu repos
+          sudo apt-get install openjdk-11-jdk
+
+      - name: Install python dependencies
+        run: |
+          python -m pip install -U pip setuptools wheel
+          python -m pip install -U -r requirements/in/tox.in
+
+      - name: Run unit tests
+        run: |
+          tox -e py-pyqt${{ matrix.pyqt-version }}
